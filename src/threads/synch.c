@@ -178,6 +178,7 @@ lock_init (struct lock *lock)
   ASSERT (lock != NULL);
 
   lock->holder = NULL;
+  // TODO here
   // lock->max_virtual_priority = 0;
   sema_init (&lock->semaphore, 1);
 }
@@ -199,7 +200,7 @@ lock_acquire (struct lock *lock)
 
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
-  
+  // TODO here
   // if(lock->max_virtual_priority<thread_current()->priority){
   //   lock->max_virtual_priority = thread_current()->priority;
   // }
@@ -236,7 +237,6 @@ lock_try_acquire (struct lock *lock)
 void
 lock_release (struct lock *lock) 
 {
-  // TODO here
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 

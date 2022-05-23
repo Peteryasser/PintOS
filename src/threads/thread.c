@@ -317,6 +317,7 @@ thread_yield (void)
   if (cur != idle_thread) 
     list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
+  list_sort(&ready_list, priority_bigger_compare, NULL);
   schedule ();
   intr_set_level (old_level);
 }
@@ -594,3 +595,7 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+bool priority_bigger_compare(struct list_elem *a, struct list_elem *b, void *aux){
+  return list_entry(a, struct thread, elem)->priority > list_entry(b, struct thread, elem)->priority;
+}
