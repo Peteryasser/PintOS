@@ -345,6 +345,7 @@ thread_set_priority (int new_priority)
 {
   // TODO here
   thread_current ()->priority = new_priority;
+  thread_current()->virtual_priority = new_priority;
   thread_yield();
 }
 
@@ -472,7 +473,8 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  // t->virtual_priority = priority; //added
+  // TODO here
+  t->virtual_priority = priority; //added
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
@@ -597,5 +599,13 @@ allocate_tid (void)
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 bool priority_bigger_compare(struct list_elem *a, struct list_elem *b, void *aux){
-  return list_entry(a, struct thread, elem)->priority > list_entry(b, struct thread, elem)->priority;
+  int priority_a = list_entry(a, struct thread, elem)->priority;
+  int priority_b = list_entry(b, struct thread, elem)->priority;
+  if(priority_a < list_entry(a, struct thread, elem)->virtual_priority){
+    priority_a = list_entry(a, struct thread, elem)->virtual_priority;
+  }
+  if(priority_b < list_entry(b, struct thread, elem)->virtual_priority){
+    priority_b = list_entry(b, struct thread, elem)->virtual_priority;
+  }
+  return priority_a > priority_b;
 }

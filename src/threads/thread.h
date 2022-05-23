@@ -92,7 +92,7 @@ struct thread
     int64_t wakeUp;                     /* to store the wake up time*/
     
    //  TODO HERE
-   //  int virtual_priority;
+    int virtual_priority;
    // //  each thread has a list of locks
    //  struct list locks;
 
