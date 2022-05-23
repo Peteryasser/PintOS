@@ -90,9 +90,15 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
     int64_t wakeUp;                     /* to store the wake up time*/
+    
+    
+   //  int virtual_priority;
+   // //  each thread has a list of locks
+   //  struct list locks;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
 
   
 #ifdef USERPROG
