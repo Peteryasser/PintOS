@@ -242,6 +242,7 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
+  //Check if the current thread has less priority
   if(thread_current() != idle_thread &&  thread_current()->virtual_priority < t->virtual_priority){
     thread_yield();
   }
@@ -316,7 +317,8 @@ thread_yield (void)
   if (cur != idle_thread) 
     list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
-  list_sort(&ready_list, thread_bigger_compare, NULL);
+  // sort list before scheduling
+  list_sort(&ready_list,thread_bigger_compare, NULL);
   schedule ();
   intr_set_level (old_level);
 }
@@ -474,7 +476,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->virtual_priority = priority; //added
-  list_init(&t->locks);
+  list_init(&t->locks);           //added
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
@@ -601,7 +603,7 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 bool thread_bigger_compare(struct list_elem *a, struct list_elem *b, void *aux){
   return list_entry(a, struct thread, elem)->virtual_priority >list_entry(b, struct thread, elem)->virtual_priority;
 }
-
+// Donating the priority
 void thread_donate(struct thread *t, int new_priority){
   t->virtual_priority = new_priority;
   thread_yield();
