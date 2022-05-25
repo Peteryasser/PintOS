@@ -201,7 +201,7 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
-  if(priority>thread_current()->priority){
+  if(priority>thread_current()->virtual_priority){
     thread_yield();
   }
   return tid;
@@ -242,7 +242,7 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
-  if(thread_current() != idle_thread &&  thread_current()->priority < t->priority){
+  if(thread_current() != idle_thread &&  thread_current()->virtual_priority < t->virtual_priority){
     thread_yield();
   }
   intr_set_level (old_level);
@@ -307,7 +307,6 @@ thread_exit (void)
 void
 thread_yield (void) 
 {
-  // TODO here
   struct thread *cur = thread_current ();
   enum intr_level old_level;
 
@@ -317,7 +316,7 @@ thread_yield (void)
   if (cur != idle_thread) 
     list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
-  list_sort(&ready_list, priority_bigger_compare, NULL);
+  list_sort(&ready_list, thread_bigger_compare, NULL);
   schedule ();
   intr_set_level (old_level);
 }
@@ -343,9 +342,10 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  // TODO here
+  if (thread_current()->virtual_priority == thread_current()->priority){
+    thread_current()->virtual_priority = new_priority;
+  }
   thread_current ()->priority = new_priority;
-  thread_current()->virtual_priority = new_priority;
   thread_yield();
 }
 
@@ -473,7 +473,6 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  // TODO here
   t->virtual_priority = priority; //added
   t->magic = THREAD_MAGIC;
 
@@ -598,14 +597,11 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-bool priority_bigger_compare(struct list_elem *a, struct list_elem *b, void *aux){
-  int priority_a = list_entry(a, struct thread, elem)->priority;
-  int priority_b = list_entry(b, struct thread, elem)->priority;
-  if(priority_a < list_entry(a, struct thread, elem)->virtual_priority){
-    priority_a = list_entry(a, struct thread, elem)->virtual_priority;
-  }
-  if(priority_b < list_entry(b, struct thread, elem)->virtual_priority){
-    priority_b = list_entry(b, struct thread, elem)->virtual_priority;
-  }
-  return priority_a > priority_b;
+bool thread_bigger_compare(struct list_elem *a, struct list_elem *b, void *aux){
+  return list_entry(a, struct thread, elem)->virtual_priority >list_entry(b, struct thread, elem)->virtual_priority;
+}
+
+void thread_donate(struct thread *t, int new_priority){
+  t->virtual_priority = new_priority;
+  thread_yield();
 }

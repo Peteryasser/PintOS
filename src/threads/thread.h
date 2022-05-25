@@ -91,10 +91,8 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
     int64_t wakeUp;                     /* to store the wake up time*/
     
-   //  TODO HERE
-    int virtual_priority;
-   // //  each thread has a list of locks
-   //  struct list locks;
+    int virtual_priority;                /*Priority being actually used*/
+    struct list locks;                   /*list of locks held by thread*/
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -146,7 +144,9 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+
+void thread_donate(struct thread *t, int new_priority);
 /* helper used to sort the ready list */
-bool priority_bigger_compare(struct list_elem *a, struct list_elem *b, void *aux);
+bool thread_bigger_compare(struct list_elem *a, struct list_elem *b, void *aux);
 
 #endif /* threads/thread.h */

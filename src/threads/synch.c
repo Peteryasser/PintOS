@@ -179,7 +179,6 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   // TODO here
-  // lock->max_virtual_priority = 0;
   sema_init (&lock->semaphore, 1);
 }
 
