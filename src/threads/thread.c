@@ -353,7 +353,7 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  return thread_current ()->virtual_priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -474,6 +474,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->virtual_priority = priority; //added
+  list_init(&t->locks);
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();

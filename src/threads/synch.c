@@ -116,6 +116,7 @@ sema_up (struct semaphore *sema)
   if (!list_empty (&sema->waiters)) 
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
+
   sema->value++;
   intr_set_level (old_level);
 }
@@ -178,7 +179,7 @@ lock_init (struct lock *lock)
   ASSERT (lock != NULL);
 
   lock->holder = NULL;
-  // TODO here
+  lock->priority =PRI_MIN;
   sema_init (&lock->semaphore, 1);
 }
 
@@ -196,16 +197,29 @@ lock_acquire (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
-
+  thread_current()->waiting = lock;
+  if(lock->holder==NULL){
+    lock->priority=thread_current()->virtual_priority;
+  }
+  else{
+    struct lock *current=lock;
+    struct thread *holder=lock->holder;
+    while(holder!=NULL && holder->virtual_priority < thread_current()->virtual_priority){
+      thread_donate(holder, thread_current()->virtual_priority);
+      if(current->priority< thread_current()->virtual_priority){
+        current->priority = thread_current()->virtual_priority;
+      }
+      current=holder->waiting;
+      if(current==NULL){
+        break;
+      }
+      holder=current->holder;
+    }
+  }
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
-  // TODO here
-  // if(lock->max_virtual_priority<thread_current()->priority){
-  //   lock->max_virtual_priority = thread_current()->priority;
-  // }
-  //  if(lock->max_virtual_priority<thread_current()->virtual_priority){
-  //   lock->max_virtual_priority = thread_current()->virtual_priority;
-  // }
+  lock->holder->waiting=NULL;
+  list_push_back(&lock->holder->locks, &lock->elem);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -241,6 +255,13 @@ lock_release (struct lock *lock)
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+  list_remove(&lock->elem);
+  if(list_empty(&thread_current()->locks)){
+    thread_donate(thread_current(),thread_current()->priority);
+  }else{
+    list_sort(&thread_current()->locks,lock_bigger_compare,NULL);
+    thread_donate(thread_current(), list_entry(list_front(&thread_current()->locks), struct lock, elem)->priority);
+  }
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -343,4 +364,9 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
+}
+
+
+bool lock_bigger_compare(struct list_elem *a, struct list_elem *b, void *aux){
+  return list_entry(a, struct lock, elem)->priority >list_entry(b, struct lock, elem)->priority;
 }

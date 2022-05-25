@@ -93,6 +93,7 @@ struct thread
     
     int virtual_priority;                /*Priority being actually used*/
     struct list locks;                   /*list of locks held by thread*/
+    struct lock *waiting;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
