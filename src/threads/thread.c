@@ -383,6 +383,7 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  // If there is no donation change both virtual and actial priority
   if (thread_current()->virtual_priority == thread_current()->priority){
     thread_current()->virtual_priority = new_priority;
   }
