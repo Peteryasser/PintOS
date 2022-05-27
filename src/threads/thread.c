@@ -155,10 +155,10 @@ thread_tick (void)
 
           /* Update priorities */
           if (timer_ticks()%4 == 0){
-            temp->priority = TOINTNEAREST(TOFIXED(PRI_MAX) - DIVXN(temp->recent_cpu, 4) - MULTXN(TOFIXED(temp->nice),2));
-            if (temp->priority < PRI_MIN)
-              temp->priority = PRI_MIN;
-            else if (temp->priority > PRI_MAX)
+            temp->virtual_priority = TOINTNEAREST(TOFIXED(PRI_MAX) - DIVXN(temp->recent_cpu, 4) - MULTXN(TOFIXED(temp->nice),2));
+            if (temp->virtual_priority < PRI_MIN)
+              temp->virtual_priority = PRI_MIN;
+            else if (temp->virtual_priority > PRI_MAX)
               temp->priority = PRI_MAX;
           }
 
@@ -533,17 +533,16 @@ init_thread (struct thread *t, const char *name, int priority)
       t->recent_cpu = 0;
       t->nice = 0;
     }
-    t->priority = TOINTNEAREST(TOFIXED(PRI_MAX) - DIVXN(t->recent_cpu, 4) - MULTXN(TOFIXED(t->nice), 2));
-    if (t->priority < PRI_MIN)
-      t->priority = PRI_MIN;
-    else if (t->priority > PRI_MAX)
-      t->priority = PRI_MAX;
+    t->virtual_priority = TOINTNEAREST(TOFIXED(PRI_MAX) - DIVXN(t->recent_cpu, 4) - MULTXN(TOFIXED(t->nice), 2));
+    if (t->virtual_priority < PRI_MIN)
+      t->virtual_priority = PRI_MIN;
+    else if (t->virtual_priority > PRI_MAX)
+      t->virtual_priority = PRI_MAX;
   }
   else{
-    t->virtual_priority = priority; //added
-    list_init(&t->locks);           //added
+    t->virtual_priority = priority; //added 
   }
-
+  list_init(&t->locks);           //added
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
