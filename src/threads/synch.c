@@ -199,23 +199,26 @@ lock_acquire (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
-  thread_current()->waiting = lock;
-  if(lock->holder==NULL){
-    lock->priority=thread_current()->virtual_priority;
-  }
-  else{
-    struct lock *current=lock;
-    struct thread *holder=lock->holder;
-    while(holder!=NULL && holder->virtual_priority < thread_current()->virtual_priority){
-      thread_donate(holder, thread_current()->virtual_priority);
-      if(current->priority< thread_current()->virtual_priority){
-        current->priority = thread_current()->virtual_priority;
+
+  if(!thread_mlfqs){
+    thread_current()->waiting = lock;
+    if(lock->holder==NULL){
+      lock->priority=thread_current()->virtual_priority;
+    }
+    else{
+      struct lock *current=lock;
+      struct thread *holder=lock->holder;
+      while(holder!=NULL && holder->virtual_priority < thread_current()->virtual_priority){
+        thread_donate(holder, thread_current()->virtual_priority);
+        if(current->priority< thread_current()->virtual_priority){
+          current->priority = thread_current()->virtual_priority;
+        }
+        current=holder->waiting;
+        if(current==NULL){
+          break;
+        }
+        holder=current->holder;
       }
-      current=holder->waiting;
-      if(current==NULL){
-        break;
-      }
-      holder=current->holder;
     }
   }
   sema_down (&lock->semaphore);
@@ -257,6 +260,8 @@ lock_release (struct lock *lock)
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+  if (thread_mlfqs)
+    return;
   list_remove(&lock->elem);
   if(list_empty(&thread_current()->locks)){
     thread_donate(thread_current(),thread_current()->priority); //if empty make the priority the original one

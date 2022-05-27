@@ -188,6 +188,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  if (list_empty(&wait_list))
+    return;
   enum intr_level old_level = intr_disable ();
   for (struct list_elem *e = list_begin (&wait_list); e != list_end (&wait_list);)
     {

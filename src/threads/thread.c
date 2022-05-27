@@ -28,6 +28,9 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+/* Number of timer interrupts per second. */
+#define TIMER_FREQ 100
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -53,6 +56,8 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
+int load_avg;
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -134,6 +139,35 @@ thread_tick (void)
   else
     kernel_ticks++;
 
+  if (thread_mlfqs){
+    if (t != idle_thread)
+      t->recent_cpu = ADDXN(t->recent_cpu, 1);
+
+    if (timer_ticks()%TIMER_FREQ == 0)
+        load_avg = MULTXY(DIVXY(59,60), load_avg) + MULTXY(DIVXY(1,60), TOFIXED((t == idle_thread? 0:list_size(&ready_list)+1)));
+
+    if (timer_ticks()%TIMER_FREQ == 0 || timer_ticks()%4 == 0){
+      struct list_elem *e;
+      struct thread *temp;
+      int a = DIVXY(MULTXN(load_avg,2), ADDXN(MULTXN(load_avg, 2), 1));
+      for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)){
+          temp = list_entry(e, struct thread, allelem);
+
+          /* Update priorities */
+          if (timer_ticks()%4 == 0){
+            temp->priority = TOINTNEAREST(TOFIXED(PRI_MAX) - DIVXN(temp->recent_cpu, 4) - MULTXN(TOFIXED(temp->nice),2));
+            if (temp->priority < PRI_MIN)
+              temp->priority = PRI_MIN;
+            else if (temp->priority > PRI_MAX)
+              temp->priority = PRI_MAX;
+          }
+
+          /* Update recent_cpus */
+          if (timer_ticks()%TIMER_FREQ == 0)
+            temp->recent_cpu = ADDXN(MULTXY(a, temp->recent_cpu), temp->nice);
+      }
+    }
+  }  
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
@@ -197,6 +231,11 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+
+  enum intr_level old = intr_disable();
+  if (t!=idle_thread)
+    list_push_back(&all_list, &t->allelem);
+  intr_set_level(old);
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -362,31 +401,38 @@ thread_get_priority (void)
 void
 thread_set_nice (int nice UNUSED) 
 {
-  /* Not yet implemented. */
+  struct thread *current = thread_current();
+  current->nice = nice;
+  current->priority = TOINTNEAREST(TOFIXED(PRI_MAX) - DIVXN(current->recent_cpu, 4) - MULTXN(TOFIXED(current->nice),2));
+  if (current->priority < PRI_MIN)
+    current->priority = PRI_MIN;
+  else if (current->priority > PRI_MAX)
+    current->priority = PRI_MAX;
+  if (!list_empty(&ready_list)){
+    if (current->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority)
+      thread_yield();
+  }
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+   return TOINTNEAREST(100*load_avg);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+   return TOINTNEAREST(100*thread_current()->recent_cpu);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -475,9 +521,27 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  t->virtual_priority = priority; //added
-  list_init(&t->locks);           //added
   t->magic = THREAD_MAGIC;
+
+  if(thread_mlfqs){
+    if (t != initial_thread){
+      t->recent_cpu = TOFIXED(thread_get_recent_cpu())/100;
+      t->nice = thread_get_nice();
+    }
+    else{
+      t->recent_cpu = 0;
+      t->nice = 0;
+    }
+    t->priority = TOINTNEAREST(TOFIXED(PRI_MAX) - DIVXN(t->recent_cpu, 4) - MULTXN(TOFIXED(t->nice), 2));
+    if (t->priority < PRI_MIN)
+      t->priority = PRI_MIN;
+    else if (t->priority > PRI_MAX)
+      t->priority = PRI_MAX;
+  }
+  else{
+    t->virtual_priority = priority; //added
+    list_init(&t->locks);           //added
+  }
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

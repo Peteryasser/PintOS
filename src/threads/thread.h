@@ -24,6 +24,20 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+
+#define F (1<<14)
+#define TOFIXED(n) (n*F)
+#define TOINTZERO(x) (x/F)
+#define TOINTNEAREST(x) ((x>=0)? ((x+F/2)/F): ((x-F/2)/F))
+#define ADD(x,y) (x+y)
+#define SUB(x,y) (x-y)
+#define ADDXN(x,n) (x+n*F)
+#define SUBXN(x,n) (x-n*F)
+#define MULTXY(x,y) (((int64_t) x)*y/F)
+#define MULTXN(x,n) (x*n)
+#define DIVXY(x,y) (((int64_t) x)*F/y)
+#define DIVXN(x,n) (x/n)
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -97,6 +111,9 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+    int nice;                           /* Thread's nice value */
+    int recent_cpu;                     /* Thread's recent CPU */
 
 
   
